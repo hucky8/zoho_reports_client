@@ -1,0 +1,8 @@
+doc/*
+doc/**/*
+nbproject/*
+nbproject/**/*
+pkg/*
+pkg/**/*
+test/*
+test/**/*

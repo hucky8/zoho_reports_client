@@ -1,0 +1,3 @@
+== RubyCloudSQL
+
+The RubyCloudSQL client library wraps the raw HTTP based API of Zoho Reports and CloudSQL provided by Zoho (zohoreportsapi.wiki.zoho.com).
