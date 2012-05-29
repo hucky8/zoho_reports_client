@@ -1,13 +1,13 @@
 require 'rubygems'
-require 'spec'
-require 'ruby_cloud_sql'
+require 'rspec'
+require 'zoho_reports'
 require 'pp'
 
-describe RubyCloudSQL do
-  before :all do
+describe ZohoReports::Client do
+  before :each do
     stub_login
     opts = {:login_name => '*******', :password => '*******', :database_name => 'DB', :api_key => '42n84c8db3czd5fma8721b9bi32316cb'}
-    @ruby_cloud_sql = RubyCloudSQL.new( opts )
+    @ruby_cloud_sql = ZohoReports::Client.new( opts )
   end
 
   def stub_login
@@ -23,7 +23,7 @@ describe RubyCloudSQL do
   end
 
   describe "finding data using SQL statements" do
-    before :all do
+    before :each do
       return_xml_string =
         """
         <?xml version=\"1.0\" encoding=\"UTF-8\" ?>
@@ -74,7 +74,7 @@ describe RubyCloudSQL do
   end
 
   describe "adding rows of data in cloud the database" do
-    before :all do
+    before :each do
       return_create_xml_string =
         """
 		  <?xml version=\"1.0\" encoding=\"UTF-8\"?>
@@ -172,7 +172,7 @@ describe RubyCloudSQL do
   end
 
   describe "updating rows of data in the cloud database" do
-    before :all do
+    before :each do
       return_update_xml_string =
         """
 		<?xml version=\"1.0\" encoding=\"UTF-8\"?>
@@ -256,7 +256,7 @@ describe RubyCloudSQL do
   end
 
   describe "deleting rows of data in the cloud database" do
-    before :all do
+    before :each do
       return_delete_xml_string =
         """
         <?xml version=\"1.0\" encoding=\"UTF-8\"?>
@@ -284,7 +284,7 @@ describe RubyCloudSQL do
   end
 
   describe "migrating data to an existing table in the cloud database" do
-    before :all do
+    before :each do
       return_migrate_xml_string =
         """
           <?xml version=\"1.0\" encoding=\"UTF-8\" ?>
