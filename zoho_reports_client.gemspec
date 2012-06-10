@@ -1,11 +1,11 @@
 # -*- encoding: utf-8 -*-
 $:.push File.expand_path("../lib", __FILE__)
-require "zoho_reports/version"
+require "zoho_reports_client/version"
 
 Gem::Specification.new do |s|
   s.name = "zoho_reports_client"
-  s.version = ZohoReports::VERSION
-  s.authors = %w(Thane Vo Tony Summerville)
+  s.version = ZohoReportsClient::VERSION
+  s.authors = ["Thane Vo", "Tony Summerville"]
   s.email = %w(Thane.Vo@gmail.com tsummerville@rarestep.com)
   s.homepage = ""
   s.summary = %q{Ruby wrapper for Zoho Reports API}

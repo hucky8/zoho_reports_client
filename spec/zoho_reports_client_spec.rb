@@ -1,6 +1,6 @@
 require 'rubygems'
 require 'rspec'
-require 'zoho_reports'
+require 'zoho_reports_client'
 require 'pp'
 
 describe ZohoReports::Client do
