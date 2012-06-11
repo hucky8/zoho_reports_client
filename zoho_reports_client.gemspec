@@ -20,6 +20,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency 'xml-simple'
   s.add_dependency 'activesupport'
+  s.add_dependency 'multipart-post'
 
   s.add_development_dependency 'rspec'
 end
