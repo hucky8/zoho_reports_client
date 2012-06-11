@@ -1,6 +1,7 @@
 require 'net/https'
 require 'cgi'
 require 'xmlsimple'
+require 'net/http/post/multipart'
 
 module ZohoReports
   class Client
@@ -42,7 +43,7 @@ module ZohoReports
       params['TICKET']
     end
 
-    def zoho_find_by_sql(database_name, table_name, sql = '')
+    def find_by_sql(database_name, table_name, sql = '')
       begin
         find_response = zoho_action(:find, database_name, table_name, CGI::escape(sql))
         if find_response.keys.include? "result"
@@ -60,7 +61,7 @@ module ZohoReports
       find_result
     end
 
-    def zoho_create(database_name, table_name, row_data = { })
+    def create(database_name, table_name, row_data = { })
       row_data = row_data.to_query_string(include_question_mark = false)
 
       begin
@@ -80,7 +81,7 @@ module ZohoReports
       row_created
     end
 
-    def zoho_update(database_name, table_name, conditions, new_data = { })
+    def update(database_name, table_name, conditions, new_data = { })
       update_conditions = "&ZOHO_CRITERIA=" + "(#{CGI::escape(conditions)})"
       update_data = new_data.to_query_string(include_question_mark = false) + update_conditions
 
@@ -102,7 +103,7 @@ module ZohoReports
     end
 
 
-    def zoho_delete(database_name, table_name, conditions = '')
+    def delete(database_name, table_name, conditions = '')
       begin
         delete_response = zoho_action(:delete, database_name, table_name, CGI::escape(conditions))
         if delete_response.keys.include? "result"
@@ -120,82 +121,100 @@ module ZohoReports
       row_deleted
     end
 
-    # Add & update data in bulk from a CSV file.
+    # Adds & updates data in bulk from a CSV file.
     # See: https://zohoreportsapi.wiki.zoho.com/Importing-CSV-File.html
     #
     # table_name  - The String name of the table to import data into.
     # csv_file_name - The String full file name with path of the CSV file to import.
-    # options - The Hash options/params to include in the API request (default values listed; see
+    # url_params - The Hash url_params/url_params to include in the API request (default values listed; see
     #           above URL for full list):
     #           :ZOHO_AUTO_IDENTIFY - Default: 'true'
     #           :ZOHO_ON_IMPORT_ERROR - Default: 'SKIPROW'
     #           :ZOHO_CREATE_TABLE - Default: 'true'
     #           :ZOHO_IMPORT_TYPE - Default: 'TRUNCATEADD'
-    def migrate(table_name, csv_file_name, options = { })
+    def import(table_name, csv_file_name, params = { })
       result = false
       if File.exist? csv_file_name
         begin
-          csv_reader = File.open(csv_file_name)
-          csv_data = csv_reader.read
-          csv_reader.close
-
-          params = { :ZOHO_AUTO_IDENTIFY => 'true', :ZOHO_ON_IMPORT_ERROR => 'SKIPROW',
-                     :ZOHO_CREATE_TABLE => 'true', :ZOHO_IMPORT_TYPE => 'TRUNCATEADD',
-                     :ZOHO_IMPORT_DATA => csv_data }
-
-          query = params.merge(options).to_query_string(include_question_mark = false)
-          response = zoho_action(:migrate, @database_name, table_name, query)
+          params.reverse_merge!(:ZOHO_AUTO_IDENTIFY => 'true', :ZOHO_ON_IMPORT_ERROR => 'SKIPROW',
+                                :ZOHO_CREATE_TABLE => 'true', :ZOHO_IMPORT_TYPE => 'TRUNCATEADD',
+                                :ZOHO_FILE => UploadIO.new(csv_file_name, 'text/csv'))
+          response = zoho_action(:import, @database_name, table_name, params)
 
           if response.keys.include? 'result'
             result = true
           elsif response.keys.include? 'error'
-            #logger.error create_response["error"]["message"]
+            logger.error response["error"]["message"] if defined?(logger)
             result = false
           else
             result = false
           end
-        rescue => exception
-          #logger.error exception.message
+        rescue Exception => e
+          logger.error e.message if defined?(logger)
           result = false
         end
       end
       result
     end
 
-    protected
+    private
 
-    def zoho_action(action, database_name, table_name, data = '')
-      actions = { :find => 'EXPORT', :create => 'ADDROW', :update => 'UPDATE', :delete => 'DELETE', :migrate => 'IMPORT' }
+    # Sets up a Zoho API call, makes the request and handles the response.
+    #
+    # action  - The Symbol API action to call. Must be one of the following: :find, :create,
+    #           :update, :delete, or :import
+    # database_name - The String name of the database to invoke an API action for.
+    # table_name  - The String name of the table in the database the action is targeting.
+    # params  - The Hash of data parameters to send as the body of the request.
+    def zoho_action(action, database_name, table_name, params = { })
+      actions = { :find => 'EXPORT',
+                  :create => 'ADDROW',
+                  :update => 'UPDATE',
+                  :delete => 'DELETE',
+                  :import => 'IMPORT' }
       raise ArgumentError, "No #{action.to_s} action available. Must be one of: #{actions.values.map { |v| v.to_s }.uniq.sort.join(', ')}" unless actions.keys.include? action
 
-      param = case action
-        when :find
-          "ZOHO_SQLQUERY="
-        when :delete
-          "ZOHO_CRITERIA="
-        else
-          ""
+      if action == :find
+        params = { :ZOHO_SQLQUERY => params }
+      elsif action == :delete
+        params = { :ZOHO_CRITERIA => params }
       end
 
-      post_data = param + data
-      zoho_response = zoho_request(database_name, table_name, 'POST', { 'ZOHO_ACTION' => actions[action] }, post_data)
-      result = handle_response(zoho_response)
-      result
+      zoho_response = zoho_request(database_name, table_name, action == :import,
+                                   { :ZOHO_ACTION => actions[action] }, params)
+      handle_response(zoho_response)
     end
 
-    def zoho_request(database_name, table_name, method, params, *arguments)
-      params.merge!({
-                        'ZOHO_ERROR_FORMAT' => 'XML',
-                        'ZOHO_OUTPUT_FORMAT' => 'XML',
-                        'ZOHO_API_KEY' => @api_key,
-                        'ticket' => @ticket,
-                        'ZOHO_API_VERSION' => '1.0'
-                    })
+    # Actually makes a request to the Zoho API.
+    #
+    # database_name - The String name of the database to invoke an API action for.
+    # table_name  - The String name of the table in the database the action is targeting.
+    # multipart - The Boolean true or false whether the request should be multipart (e.g. it includes
+    #             a file, such as an :import action).
+    # url_params  - The Hash of params to include on the URL (not in the body)
+    # params  - The Hash of params to include in the body of the POST request.
+    def zoho_request(database_name, table_name, multipart, url_params, params)
+      url_params.merge!({
+                            :ZOHO_ERROR_FORMAT => 'XML',
+                            :ZOHO_OUTPUT_FORMAT => 'XML',
+                            :ZOHO_API_KEY => @api_key,
+                            :ticket => @ticket,
+                            :ZOHO_API_VERSION => '1.0'
+                        })
 
       base_url = "http://reports.zoho.com/api"
-      url = "#{base_url}/#{@login_name}/#{database_name}/#{table_name}#{params.to_query_string}"
+      url = "#{base_url}/#{@login_name}/#{database_name}/#{table_name}?#{url_params.to_query}"
 
-      response = @http.send_request(method, url, *arguments)
+      if multipart
+        request = Net::HTTP::Post::Multipart.new(url, params)
+      else
+        request = Net::HTTP::Post.new(url)
+        request.set_form_data(params)
+      end
+
+      response = @http.start do |http|
+        http.request(request)
+      end
       raise "HTTP Error: #{response.code.to_i}" unless (200...400).include? response.code.to_i
       response
     end
@@ -204,8 +223,7 @@ module ZohoReports
       response_data = XmlSimple.xml_in(response.body, 'ForceArray' => false, 'KeepRoot' => true)
 
       raise "Unexpected Zoho Reports API Response" unless response_data.keys.include? "response"
-      query_result = response_data["response"]
-      query_result
+      response_data["response"]
     end
   end
 end
