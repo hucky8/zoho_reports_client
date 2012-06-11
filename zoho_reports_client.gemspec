@@ -19,5 +19,7 @@ Gem::Specification.new do |s|
   s.require_paths = %w(lib)
 
   s.add_dependency 'xml-simple'
+  s.add_dependency 'activesupport'
+
   s.add_development_dependency 'rspec'
 end
