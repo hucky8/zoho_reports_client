@@ -129,14 +129,14 @@ module ZohoReports
     # url_params - The Hash url_params/url_params to include in the API request (default values listed; see
     #           above URL for full list):
     #           :ZOHO_AUTO_IDENTIFY - Default: 'true'
-    #           :ZOHO_ON_IMPORT_ERROR - Default: 'SKIPROW'
+    #           :ZOHO_ON_IMPORT_ERROR - Default: 'SETCOLUMNEMPTY'
     #           :ZOHO_CREATE_TABLE - Default: 'true'
     #           :ZOHO_IMPORT_TYPE - Default: 'TRUNCATEADD'
     def import(table_name, csv_file_name, params = { })
       result = false
       if File.exist? csv_file_name
         begin
-          params.reverse_merge!(:ZOHO_AUTO_IDENTIFY => 'true', :ZOHO_ON_IMPORT_ERROR => 'SKIPROW',
+          params.reverse_merge!(:ZOHO_AUTO_IDENTIFY => 'true', :ZOHO_ON_IMPORT_ERROR => 'SETCOLUMNEMPTY',
                                 :ZOHO_CREATE_TABLE => 'true', :ZOHO_IMPORT_TYPE => 'TRUNCATEADD',
                                 :ZOHO_FILE => UploadIO.new(csv_file_name, 'text/csv'))
           response = zoho_action(:import, @database_name, table_name, params)
