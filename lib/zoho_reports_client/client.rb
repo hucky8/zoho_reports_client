@@ -22,25 +22,29 @@ module ZohoReports
     end
 
     def login(login_name, login_password)
-      login_base_url = 'https://accounts.zoho.com'
-      url = "#{login_base_url}/login?servicename=ZohoReports&FROM_AGENT=true&LOGIN_ID=#{login_name}&PASSWORD=#{login_password}"
-      uri = URI.parse(url)
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true if uri.scheme == 'https'
-      get = Net::HTTP::Get.new(url)
-      response = http.request(get)
-      params = { }
+      url = 'https://accounts.zoho.com/login'
+      params = {
+          servicename: "ZohoReports",
+          FROM_AGENT: true,
+          LOGIN_ID: login_name,
+          PASSWORD: login_password
+      }
 
-      response.body.each_line do |line|
-        if line.include? '='
-          line.chomp!
-          key, value = line.split('=')
-          params[key] = value
-        end
-      end
-      raise ArgumentError, "No ticket specified. Missing argument: ticket." unless params.has_key? 'TICKET'
+      result = authentication_request(url, params)
+      raise ArgumentError, "No ticket specified. Missing argument: ticket." unless result.has_key? 'TICKET'
+      result['TICKET']
+    end
 
-      params['TICKET']
+    # Invalidates the current @ticket. Per Zoho, it is mandatory to invalidate the ticket once the ticket usage is
+    # completed in the application.
+    def logout
+      url = 'https://accounts.zoho.com/logout'
+      params = {
+          ticket: @ticket,
+          FROM_AGENT: true
+      }
+      result = authentication_request(url, params)
+      result['RESULT']
     end
 
     def find_by_sql(database_name, table_name, sql = '')
@@ -158,6 +162,34 @@ module ZohoReports
     end
 
     private
+
+    # Makes a login or logout POST request, and converts the response to a Hash.
+    def authentication_request(url, params)
+      uri = URI.parse(url)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true if uri.scheme == 'https'
+
+      post = Net::HTTP::Post.new(url)
+      post.set_form_data(params)
+
+      response = http.request(post)
+      handle_authentication_response(response)
+    end
+
+    # Converts an authentication request's response into a Hash and returns it.
+    def handle_authentication_response(response)
+      result = { }
+
+      response.body.each_line do |line|
+        if line.include? '='
+          line.chomp!
+          key, value = line.split('=')
+          result[key] = value
+        end
+      end
+
+      result
+    end
 
     # Sets up a Zoho API call, makes the request and handles the response.
     #

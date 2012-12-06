@@ -7,15 +7,16 @@ describe ZohoReports::Client do
   before :each do
     stub_login
     opts = {:login_name => '*******', :password => '*******', :database_name => 'DB', :api_key => '42n84c8db3czd5fma8721b9bi32316cb'}
-    @ruby_cloud_sql = ZohoReports::Client.new( opts )
+    @zoho_reports_client = ZohoReports::Client.new( opts )
   end
 
   def stub_login
     @http = mock( Net::HTTP )
     Net::HTTP.stub!( :new ).and_return( @http )
     @http.stub!( :use_ssl= )
-    http_get = mock( Net::HTTP::Get )
-    Net::HTTP::Get.stub!( :new ).and_return( http_get )
+    http_post = mock( Net::HTTP::Post )
+    http_post.stub!( :set_form_data ).and_return( true )
+    Net::HTTP::Post.stub!( :new ).and_return( http_post )
     resp = mock( Net::HTTPResponse )
     resp.stub!( :code ).and_return( "200" )
     resp.stub!( :body ).and_return( "TICKET=R2D23CP0" )
@@ -49,7 +50,7 @@ describe ZohoReports::Client do
       stub_http_request( "200", return_xml_string )
       sql = "select \"Customer Name\",Sales,Cost,\"Profit (Sales)\" from Sales where Region = 'Central'"
       lambda {
-        @find_response = @ruby_cloud_sql.zoho_find_by_sql( "DB", "Sales", sql )
+        @find_response = @zoho_reports_client.find_by_sql( "DB", "Sales", sql )
       }.should_not raise_error
     end
 
@@ -115,7 +116,7 @@ describe ZohoReports::Client do
       @row_data = {"Date" => "01 Jan, 2009 00:00:00", "Region" => "South", "Product Category" => "Tobacco", "Product" => "Cigarettes", "Customer Name" => "Smoker", "Sales" => 500, "Cost" => 400, "Profit (Sales)" => 100}
 
       lambda {
-        @row_created = @ruby_cloud_sql.zoho_create( "DB", "Sales", @row_data )
+        @row_created = @zoho_reports_client.create( "DB", "Sales", @row_data )
       }.should_not raise_error
 
       return_find_xml_string =
@@ -144,7 +145,7 @@ describe ZohoReports::Client do
       sql_for_new_row = "SELECT * FROM Sales WHERE #{query_conditions( @row_data )}"
 
       lambda {
-        @add_response = @ruby_cloud_sql.zoho_find_by_sql( "DB", "Sales", sql_for_new_row )
+        @add_response = @zoho_reports_client.find_by_sql( "DB", "Sales", sql_for_new_row )
       }.should_not raise_error
 
     end
@@ -200,7 +201,7 @@ describe ZohoReports::Client do
       @new_data = {"Sales" => 800, "Cost" => 600, "Profit (Sales)" => 200}
 
       lambda {
-        @row_updated = @ruby_cloud_sql.zoho_update( "DB", "Sales", "(\"Customer Name\" = 'Smoker')", @new_data )
+        @row_updated = @zoho_reports_client.update( "DB", "Sales", "(\"Customer Name\" = 'Smoker')", @new_data )
       }.should_not raise_error
 
       return_find_xml_string =
@@ -229,7 +230,7 @@ describe ZohoReports::Client do
       sql_for_updated_row = "SELECT * FROM Sales WHERE #{query_conditions( @new_data )}"
 
       lambda {
-        @update_response = @ruby_cloud_sql.zoho_find_by_sql( "DB", "Sales", sql_for_updated_row )
+        @update_response = @zoho_reports_client.find_by_sql( "DB", "Sales", sql_for_updated_row )
       }.should_not raise_error
     end
 
@@ -274,7 +275,7 @@ describe ZohoReports::Client do
       stub_http_request( "200", return_delete_xml_string )
 
       lambda {
-        @row_deleted = @ruby_cloud_sql.zoho_delete( "DB", "Sales", "(\"Customer Name\" = 'Smoker')" )
+        @row_deleted = @zoho_reports_client.delete( "DB", "Sales", "(\"Customer Name\" = 'Smoker')" )
       }.should_not raise_error
     end
 
@@ -317,7 +318,7 @@ describe ZohoReports::Client do
       stub_http_request( "200", return_migrate_xml_string )
 
       lambda {
-        @data_migrated = @ruby_cloud_sql.zoho_migrate( "DB", "Sales", "#{File.dirname(__FILE__)}/test.csv" )
+        @data_migrated = @zoho_reports_client.migrate( "DB", "Sales", "#{File.dirname(__FILE__)}/test.csv" )
       }.should_not raise_error
     end
 
