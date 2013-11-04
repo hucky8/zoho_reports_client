@@ -6,46 +6,21 @@ require 'net/http/post/multipart'
 module ZohoReports
   class Client
     def initialize(options)
-      [:login_name, :password, :database_name, :api_key].each do |param|
+      [:login_name, :password, :database_name, :auth_token].each do |param|
         raise ArgumentError, "No #{param.to_s} specified. Missing argument: #{param.to_s}." unless options.has_key? param
       end
 
-      base_url = 'http://reports.zoho.com'
+      base_url = 'https://reportsapi.zoho.com'
       uri = URI::parse(base_url)
       @http = Net::HTTP.new(uri.host, uri.port)
 
       @login_name = options[:login_name]
       @password = options[:password]
       @database_name = options[:database_name]
-      @api_key = options[:api_key]
-      @ticket = self.login(@login_name, @password)
+      @auth_token = options[:auth_token]
+      
     end
 
-    def login(login_name, login_password)
-      url = 'https://accounts.zoho.com/login'
-      params = {
-          servicename: "ZohoReports",
-          FROM_AGENT: true,
-          LOGIN_ID: login_name,
-          PASSWORD: login_password
-      }
-
-      result = authentication_request(url, params)
-      raise ArgumentError, "No ticket specified. Missing argument: ticket." unless result.has_key? 'TICKET'
-      result['TICKET']
-    end
-
-    # Invalidates the current @ticket. Per Zoho, it is mandatory to invalidate the ticket once the ticket usage is
-    # completed in the application.
-    def logout
-      url = 'https://accounts.zoho.com/logout'
-      params = {
-          ticket: @ticket,
-          FROM_AGENT: true
-      }
-      result = authentication_request(url, params)
-      result['RESULT']
-    end
 
     def find_by_sql(database_name, table_name, sql = '')
       begin
@@ -229,8 +204,7 @@ module ZohoReports
       url_params.merge!({
                             :ZOHO_ERROR_FORMAT => 'XML',
                             :ZOHO_OUTPUT_FORMAT => 'XML',
-                            :ZOHO_API_KEY => @api_key,
-                            :ticket => @ticket,
+                            :authtoken => @auth_token,
                             :ZOHO_API_VERSION => '1.0'
                         })
 
