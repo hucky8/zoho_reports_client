@@ -208,8 +208,9 @@ module ZohoReports
                             :ZOHO_API_VERSION => '1.0'
                         })
 
-      base_url = "http://reports.zoho.com/api"
+      base_url = "https://reportsapi.zoho.com/api"
       url = "#{base_url}/#{@login_name}/#{database_name}/#{table_name}?#{url_params.to_query}"
+      #https://reportsapi.zoho.com/api/<zohologinemailaddress>/<databasename>/<tablename or reportname>
 
       if multipart
         request = Net::HTTP::Post::Multipart.new(url, params)
